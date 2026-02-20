@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/alarm_provider.dart';
+import 'providers/timezone_provider.dart';
 
 void main() {
   runApp(const MyAlarmClockApp());
@@ -9,24 +12,30 @@ class MyAlarmClockApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'the_alarm_clock',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.black,
-        fontFamily: 'SF Pro Display',
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Colors.white70),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AlarmProvider()),
+        ChangeNotifierProvider(create: (_) => TimeZoneProvider()),
+      ],
+      child: MaterialApp(
+        title: 'the_alarm_clock',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          scaffoldBackgroundColor: Colors.black,
+          fontFamily: 'SF Pro Display',
+          textTheme: const TextTheme(
+            bodyLarge: TextStyle(color: Colors.white),
+            bodyMedium: TextStyle(color: Colors.white70),
+          ),
+          colorScheme: ColorScheme.dark(
+            primary: Colors.blue[400]!,
+            surface: Colors.grey[900]!,
+          ),
+          useMaterial3: true,
         ),
-        colorScheme: ColorScheme.dark(
-          primary: Colors.blue[400]!,
-          surface: Colors.grey[900]!,
-        ),
-        useMaterial3: true,
+        home: const AlarmHomePage(),
+        debugShowCheckedModeBanner: false,
       ),
-      home: const AlarmHomePage(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
@@ -117,238 +126,314 @@ class AlarmsPage extends StatefulWidget {
 }
 
 class _AlarmsPageState extends State<AlarmsPage> {
+  late int _newHour;
+  late int _newMinute;
   bool _is24HourFormat = false;
   String _selectedPeriod = 'AM';
+  String _newAlarmLabel = 'Wake up';
+  final List<int> _selectedRepeatDays = [];
+  final String _selectedSound = 'Constellation';
+  int _selectedSnoozeDuration = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _newHour = 6;
+    _newMinute = 45;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Active alarm
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '9:41',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.w300,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Mon 20th • Bogota, Colombia',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Alarm in 1 hour',
-                        style: TextStyle(color: Colors.blue, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                Switch(
-                  value: true,
-                  onChanged: (value) {},
-                  activeThumbColor: Colors.blue,
-                ),
-              ],
-            ),
-          ),
+    return Consumer<AlarmProvider>(
+      builder: (context, alarmProvider, child) {
+        final nextAlarm = alarmProvider.nextAlarm;
+        final timeUntilNext = alarmProvider.timeUntilNextAlarm;
 
-          // New alarm section
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              '-New Alarm-',
-              style: TextStyle(
-                color: Colors.blue,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-
-          // Time picker
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Column(
-              children: [
-                // Time display
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      '06',
-                      style: TextStyle(fontSize: 72, fontWeight: FontWeight.w300),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      child: const Text(
-                        ':',
-                        style: TextStyle(fontSize: 72, color: Colors.grey),
-                      ),
-                    ),
-                    const Text(
-                      '45',
-                      style: TextStyle(fontSize: 72, fontWeight: FontWeight.w300),
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedPeriod = 'AM'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _selectedPeriod == 'AM'
-                                  ? Colors.blue
-                                  : Colors.grey[800],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'AM',
-                              style: TextStyle(fontSize: 16),
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Active alarm display
+              if (nextAlarm != null)
+                Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${nextAlarm.hour.toString().padLeft(2, '0')}:${nextAlarm.minute.toString().padLeft(2, '0')}',
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w300,
+                              color: Colors.white,
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Mon 20th • Bogota, Colombia',
+                            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                          ),
+                          const SizedBox(height: 8),
+                          if (timeUntilNext != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'Alarm in ${timeUntilNext.inHours}h ${timeUntilNext.inMinutes % 60}m',
+                                style: const TextStyle(color: Colors.blue, fontSize: 12),
+                              ),
+                            ),
+                        ],
+                      ),
+                      Switch(
+                        value: nextAlarm.enabled,
+                        onChanged: (value) {
+                          alarmProvider.toggleAlarm(nextAlarm.id, value);
+                        },
+                        activeThumbColor: Colors.blue,
+                      ),
+                    ],
+                  ),
+                ),
+
+              // New alarm section
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  '-New Alarm-',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+
+              // Time picker
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    // Time display
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _newHour.toString().padLeft(2, '0'),
+                          style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w300),
                         ),
-                        const SizedBox(height: 8),
-                        GestureDetector(
-                          onTap: () => setState(() => _selectedPeriod = 'PM'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          child: const Text(
+                            ':',
+                            style: TextStyle(fontSize: 72, color: Colors.grey),
+                          ),
+                        ),
+                        Text(
+                          _newMinute.toString().padLeft(2, '0'),
+                          style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w300),
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPeriod = 'AM';
+                                  if (_newHour >= 12) _newHour -= 12;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _selectedPeriod == 'AM'
+                                      ? Colors.blue
+                                      : Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'AM',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ),
                             ),
-                            decoration: BoxDecoration(
-                              color: _selectedPeriod == 'PM'
-                                  ? Colors.blue
-                                  : Colors.grey[800],
-                              borderRadius: BorderRadius.circular(12),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPeriod = 'PM';
+                                  if (_newHour < 12) _newHour += 12;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _selectedPeriod == 'PM'
+                                      ? Colors.blue
+                                      : Colors.grey[800],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  'PM',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                              ),
                             ),
-                            child: const Text(
-                              'PM',
-                              style: TextStyle(fontSize: 16),
-                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Time picker sliders
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text('Hour', style: TextStyle(color: Colors.grey)),
+                              Slider(
+                                value: _newHour.toDouble(),
+                                min: 0,
+                                max: 23,
+                                divisions: 23,
+                                onChanged: (value) {
+                                  setState(() => _newHour = value.toInt());
+                                },
+                                activeColor: Colors.blue,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              const Text('Min', style: TextStyle(color: Colors.grey)),
+                              Slider(
+                                value: _newMinute.toDouble(),
+                                min: 0,
+                                max: 59,
+                                divisions: 59,
+                                onChanged: (value) {
+                                  setState(() => _newMinute = value.toInt());
+                                },
+                                activeColor: Colors.blue,
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
 
-                const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                // Time picker sliders
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const Text('Hour', style: TextStyle(color: Colors.grey)),
-                          Slider(
-                            value: 6,
-                            min: 1,
-                            max: 12,
-                            divisions: 11,
-                            onChanged: (value) {},
-                            activeColor: Colors.blue,
-                          ),
-                        ],
+                    // Format toggle
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('24H'),
+                          selected: _is24HourFormat,
+                          onSelected: (selected) =>
+                              setState(() => _is24HourFormat = selected),
+                          backgroundColor: Colors.grey[800],
+                          selectedColor: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('12H'),
+                          selected: !_is24HourFormat,
+                          onSelected: (selected) =>
+                              setState(() => _is24HourFormat = !selected),
+                          backgroundColor: Colors.grey[800],
+                          selectedColor: Colors.blue,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Save button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final scaffold = ScaffoldMessenger.of(context);
+                          alarmProvider.addAlarm(
+                            hour: _newHour,
+                            minute: _newMinute,
+                            label: _newAlarmLabel,
+                            repeatDays: _selectedRepeatDays,
+                            sound: _selectedSound,
+                            snoozeDuration: _selectedSnoozeDuration,
+                          ).then((_) {
+                            scaffold.showSnackBar(
+                              const SnackBar(content: Text('Alarm created!')),
+                            );
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text(
+                          'Save Alarm',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          const Text('Min', style: TextStyle(color: Colors.grey)),
-                          Slider(
-                            value: 45,
-                            min: 0,
-                            max: 59,
-                            divisions: 59,
-                            onChanged: (value) {},
-                            activeColor: Colors.blue,
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
+              ),
 
-                const SizedBox(height: 16),
+              // Alarm settings
+              _buildSettingItem('Set Alarm name', _newAlarmLabel, () {
+                setState(() => _newAlarmLabel = 'Custom Alarm');
+              }),
+              _buildSettingItem('Repeat', 'Mo Tu We Th Fr Sa Su', () {}),
+              _buildSettingItem('Snooze Duration', '${_selectedSnoozeDuration} min', () {
+                setState(() {
+                  _selectedSnoozeDuration = _selectedSnoozeDuration == 5 ? 10 : 5;
+                });
+              }),
+              _buildSettingItem('Sound', _selectedSound, () {}),
+              _buildSettingItem('Auto silent time', '15 min', () {}),
 
-                // Format toggle
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('24H'),
-                      selected: !_is24HourFormat,
-                      onSelected: (selected) =>
-                          setState(() => _is24HourFormat = !selected),
-                      backgroundColor: Colors.grey[800],
-                      selectedColor: Colors.blue,
-                    ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('12H'),
-                      selected: _is24HourFormat,
-                      onSelected: (selected) =>
-                          setState(() => _is24HourFormat = selected),
-                      backgroundColor: Colors.grey[800],
-                      selectedColor: Colors.blue,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              const SizedBox(height: 20),
+            ],
           ),
-
-          // Alarm settings
-          _buildSettingItem('Set Alarm name', 'Wake up'),
-          _buildSettingItem('Repeat', 'Mo Tu We Th Fr Sa Su'),
-          _buildSettingItem('Snooze Duration', '5 min'),
-          _buildSettingItem('Sound', 'Constellation'),
-          _buildSettingItem('Auto silent time', '15 min'),
-
-          const SizedBox(height: 20),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildSettingItem(String label, String value) {
+  Widget _buildSettingItem(String label, String value, VoidCallback onTap) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -357,18 +442,21 @@ class _AlarmsPageState extends State<AlarmsPage> {
           bottom: BorderSide(color: Colors.grey[800]!, width: 0.5),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
-          Row(
-            children: [
-              Text(value, style: TextStyle(color: Colors.grey[400], fontSize: 16)),
-              const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: Colors.grey[600]),
-            ],
-          ),
-        ],
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
+            Row(
+              children: [
+                Text(value, style: TextStyle(color: Colors.grey[400], fontSize: 16)),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right, color: Colors.grey[600]),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
