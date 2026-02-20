@@ -1,0 +1,17 @@
+name: the_alarm_clock
+description: A Flutter alarm clock with world clock, stopwatch, and timer.
+publish_to: 'none'
+environment:
+  sdk: ">=2.18.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  intl: ^0.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

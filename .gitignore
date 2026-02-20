@@ -1,0 +1,16 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-plugins
+.idea/
+.vscode/
+android/.gradle/
+ios/Pods/
+**/GeneratedPluginRegistrant.*
+
+# macOS
+.DS_Store
